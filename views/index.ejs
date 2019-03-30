@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <title>WebRTC</title>
+    </head>
+    <body>
+        <div>
+            Video: <select id="camera"></select>
+        </div>
+        <p>
+            <button id="take-picture" type="button" autofocus="true">
+                Get Profile Picture
+            </button>
+        </p>
+        <video id="video" autoplay ></video>
+
+	<div>
+		<label>Your Name</label><input id="my-name" type="text"/>
+		<label>Message</label><input id="my-msg" type="text"/>
+		<input id="send-msg" type="submit"/>
+		<div id="chat-area">Message Output:<br/></div>
+	</div>
+
+        <script src="bundle.js"></script>
+
+        <script>
+            const onSuccess = (stream) => {
+                console.log('Success with Video Stream!')
+                video.srcObject = stream
+                videoArea.play()
+            }
+
+            const onError = (err) => {
+                console.log(`Error with getUserMedia: ${err}`)
+            }
+
+            var videoArea = document.querySelector('video')
+            var videoSelect = document.querySelector('#camera')
+
+            var myName = document.querySelector("#my-name")
+            var myMsg = document.querySelector("#my-msg")
+            var sendMsg = document.querySelector("#send-msg")
+            var chatArea = document.querySelector("#chat-area")
+            var room = "chat"
+
+            connectToWSserver('ready', room, (msg) => {
+                if(msg.type === 'announce'){
+                    chatArea.innerHTML = chatArea.innerHTML + "<br/>" + msg.payload.text
+                }
+
+                if(msg.type === 'message'){
+                    chatArea.innerHTML = chatArea.innerHTML + "<br/>" + msg.payload.author + ": " + msg.payload.text
+                }
+            })
+
+            sendMsg.addEventListener('click', (event) => {
+                sendMsgToWSserver(room, {
+                    author: myName.value,
+                    text: myMsg.value
+                })
+
+                event.preventDefault()
+            }, false)
+
+
+            navigator.mediaDevices.enumerateDevices().then(getCameras).catch((err) => {
+                console.log(`Error on List of Devices: ${err}`)
+            })
+
+            videoSelect.onchange = startStream;
+
+            startStream()
+
+            function displayMsg(msg) {
+                chatArea.innerHTML = chatArea.innerHTML + "</br>" + msg
+            }
+
+            function getCameras(sourceInfos){
+                //console.log(sourceInfos)
+                for(let i = 0; i !== sourceInfos.length; i++){
+                    var sourceInfo = sourceInfos[i]
+                    var option = document.createElement('option')
+                    option.value = sourceInfo.id
+                    if(sourceInfo.kind.includes('video')){
+                        option.text = sourceInfo.label || 'camera' + (videoSelect.length + 1)
+                        videoSelect.appendChild(option)
+                    }
+                }
+            }
+
+            function startStream() {
+                navigator.getUserMedia = (navigator.getUserMedia || navigator.webkitGetUserMedia || navigator.mozGetUserMedia ||
+                    navigator.msGetUserMedia)
+                var videoSource = videoSelect.value
+                var constraints = {
+                    audio: true,
+                    video: false
+                }
+
+                navigator.getUserMedia(constraints, onSuccess, onError)
+            }
+
+        </script>
+    </body>
+</html>
